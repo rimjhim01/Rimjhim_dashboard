@@ -1,0 +1,352 @@
+---
+title: " Maternal health "
+format: dashboard
+theme : minty
+---
+
+```{python}
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import itables 
+import plotly.graph_objects as go
+import statsmodels.api as sm
+```
+
+```{python}
+#load the data 
+
+selected_countries = [
+    "Afghanistan", "Australia", "Austria", "Bangladesh", "Brazil", "China",
+    "India", "USA", "Mexico", "Canada", "Yemen", "Russia"
+]
+
+anemia_women = pd.read_csv("data/sh_anm_allw_zs.csv")
+anemia_women = anemia_women[anemia_women["country"].isin(selected_countries)]
+
+mmr = pd.read_csv("data/mmr_who.csv")
+mmr = mmr[mmr["country"].isin(selected_countries)]
+```
+
+
+```{python}
+# Reshape data from wide to long format
+anemia_long = anemia_women.melt(id_vars=["country"], 
+                                var_name="year", 
+                                value_name="anemia_prevalence")
+
+# Convert 'year' column to integer
+anemia_long["year"] = anemia_long["year"].astype(int)
+```
+
+
+```{python}
+# Computing the highest and lowest prevalence of anemia
+max_anemia = anemia_long.loc[anemia_long["anemia_prevalence"].idxmax()]
+min_anemia = anemia_long.loc[anemia_long["anemia_prevalence"].idxmin()]
+
+# Format output properly
+max_info = f"Country: {max_anemia['country']} - Year: {max_anemia['year']}  - Prevalence: {max_anemia['anemia_prevalence']}%"
+min_info = f"Country: {min_anemia['country']} - Year: {min_anemia['year']}  - Prevalence: {min_anemia['anemia_prevalence']}%"
+```
+
+# Anemia
+
+## Row 1 {height=20%}
+
+::: {.valuebox icon="heart" color="#ed685f" title="Highest Anemia prevalence"}
+
+`{python} max_info`
+
+:::
+
+::: {.valuebox icon="heart" color="#54d697" title="Lowest Anemia prevalence"} 
+
+`{python} min_info`
+
+:::
+
+## Row 1 {height=80%}
+
+### {width=70%}
+
+```{python}
+fig = px.choropleth(
+    anemia_long, 
+    locations="country",  
+    locationmode="country names",  
+    color="anemia_prevalence",  
+    hover_name="country",  
+    animation_frame="year",  
+    color_continuous_scale=[
+        [0.0, "blue"], 
+        [0.1, "cyan"], 
+        [0.2, "lightgreen"], 
+        [0.3, "green"], 
+        [0.4, "yellow"], 
+        [0.5, "gold"], 
+        [0.6, "orange"], 
+        [0.7, "darkorange"], 
+        [0.8, "red"], 
+        [0.9, "darkred"], 
+        [1.0, "maroon"]
+    ],
+    title="Global Anemia Prevalence in Women Over Time",
+    width=1000,
+    height=550
+)
+
+# Improve layout for better fit and appearance
+fig.update_layout(
+    margin=dict(l=10, r=10, t=40, b=10),  
+    title_x=0.5, 
+    title_y=0.98, 
+    title_font=dict(size=22), 
+    paper_bgcolor="#f0fff0", 
+    plot_bgcolor="white", 
+    coloraxis_colorbar=dict(
+        title="Anemia Prevalence",
+        title_font=dict(size=14), 
+        thickness=15,  
+        len=0.5,  
+        yanchor="middle",
+        y=0.55 
+    ),
+    sliders=[dict(pad=dict(b=0))],
+)
+
+```
+
+### {width=40%}
+
+**Key Trends in Anemia**
+
+High Anemia in LMICs: Countries like Afghanistan (35.7%) and Bangladesh (35.6%) had very high anemia prevalence in 2000, indicating nutritional and healthcare deficiencies.
+
+Lower Rates in High-Income Countries: Countries like Australia (8.0%) and Austria (11.7%) had considerably lower anemia prevalence, reflecting better access to iron-rich diets and healthcare.
+
+Disparities Persist: Even within the same region, disparities exist. For instance, Brazil (26.9%) vs. Argentina (18.7%) in 2000.
+
+Potential Risk Factor: Anemia prevalence consistently appears higher in countries with poor maternal health indicators, suggesting a link with maternal complications.
+
+
+# Maternal mortality ration (WHO)
+
+```{python}
+# Reshape data from wide to long format
+mmr_long = mmr.melt(id_vars=["country"], 
+                                var_name="year", 
+                                value_name="mortality_rate")
+
+# Convert 'year' column to integer
+mmr_long["year"] = mmr_long["year"].astype(int)
+```
+
+
+```{python}
+mmr_long_sorted = mmr_long.sort_values(by="year", ascending=True)
+
+# Create the line chart
+fig = px.line(
+    mmr_long_sorted,
+    x="year",
+    y="mortality_rate",
+    color="country",
+    title="Maternal Mortality Rate Over Time (Selected Countries)",
+    labels={
+        "mortality_rate": "Maternal Mortality Rate (per 100,000 live births)",
+        "year": "Year",
+        "country": "Country"
+    },
+    markers=True,
+    template="plotly_white"
+)
+
+# Update layout to move legend below the chart
+fig.update_layout(
+    legend_title="Country",
+    xaxis=dict(title="Year"),
+    yaxis=dict(title="Maternal Mortality Rate"),
+    height=600,
+    margin=dict(l=40, r=40, t=60, b=60),
+    legend=dict(
+        orientation="h",       
+        yanchor="bottom",
+        y=-0.3,               
+        xanchor="center",
+        x=0.5,
+        font=dict(size=10)
+    )
+)
+
+```
+
+
+📊**General Trends**📊
+
+**Extremely High MMR in Fragile States**
+Afghanistan reported an alarmingly high MMR of 1450 per 100,000 live births in 2000, among the worst globally.
+
+**Better Outcomes in Developed Nations** Australia and Austria show MMRs comparable to global best standards, reflecting effective healthcare systems.
+
+**MMR and Health Systems**
+High MMR is often indicative of systemic health system weaknesses, including access to skilled birth attendants and emergency obstetric care.
+
+
+
+
+
+# Comparison
+
+```{python}
+
+# Merge both datasets on country and year
+merged_df = pd.merge(anemia_long, mmr_long, on=["country", "year"], how="inner")
+
+```
+
+## Row 1 {height=20%}
+
+```{python}
+anemia_pivot = merged_df.pivot_table(
+    index='country',
+    columns='year',
+    values='anemia_prevalence'
+)
+
+# Drop countries with missing values
+anemia_pivot = anemia_pivot.dropna()
+
+# Calculate the drop
+anemia_pivot['drop_in_anemia'] = anemia_pivot[2000] - anemia_pivot[2015]
+
+max_drop_country = anemia_pivot['drop_in_anemia'].idxmax()
+
+drop_value = anemia_pivot.loc[max_drop_country, 'drop_in_anemia']
+start_val = anemia_pivot.loc[max_drop_country, 2000]
+end_val = anemia_pivot.loc[max_drop_country, 2015]
+
+# Format output properly
+max_drop_info = (
+    f"Country: {max_drop_country} - Drop: {drop_value:.2f}% "
+    f"(from {start_val:.2f}% in 2000 to {end_val:.2f}% in 2015)"
+)
+
+```
+
+
+```{python}
+mmr_pivot = merged_df.pivot_table(
+    index='country',
+    columns='year',
+    values='mortality_rate'
+)
+
+mmr_pivot = mmr_pivot.dropna()
+
+# Calculate the drop
+mmr_pivot['drop_in_mmr'] = mmr_pivot[2000] - mmr_pivot[2015]
+
+max_mmr_drop_country = mmr_pivot['drop_in_mmr'].idxmax()
+
+# Extract values
+drop_val = mmr_pivot.loc[max_mmr_drop_country, 'drop_in_mmr']
+start_val = mmr_pivot.loc[max_mmr_drop_country, 2000]
+end_val = mmr_pivot.loc[max_mmr_drop_country, 2015]
+
+# Format output
+max_mmr_drop_info = (
+    f"Country: {max_mmr_drop_country} - Drop: {drop_val:.2f} "
+    f"(from {start_val:.2f} in 2000 to {end_val:.2f} in 2015)"
+)
+
+```
+
+::: {.valuebox icon="heart" color="#54d697" title="Highest Anemia drop"}
+
+`{python} max_drop_info`
+
+:::
+
+::: {.valuebox icon="heart" color="#54d697" title="Highest MMR drop"}
+
+`{python} max_mmr_drop_info`
+
+:::
+
+## Row 1 {height=80%}
+
+### { width=50%}
+
+```{python}
+
+# Filter for the year 2000
+df_2000 = merged_df[merged_df['year'] == 2000]
+
+# Create an interactive scatter plot with a trendline
+fig = px.scatter(
+    df_2000,
+    x='anemia_prevalence',
+    y='mortality_rate',
+    text='country',  
+    title='Anemia vs Maternal Mortality Rate (2000)',
+    labels={
+        'anemia_prevalence': 'Anemia Prevalence (%)',
+        'mortality_rate': 'Maternal Mortality Rate (per 100,000 live births)'
+    },
+    trendline='ols',
+    template='plotly_white'
+)
+
+# Improve visibility of text labels
+fig.update_traces(textposition='top center')
+
+```
+
+
+📊**High-Risk Countries**
+In 2000, Yemen had the highest anemia prevalence (66.1%), while Afghanistan had the highest maternal mortality rate (MMR) at 1450 deaths per 100,000 live births, highlighting severe health system challenges.
+
+### { width=50%}
+
+```{python}
+# Filter for the year 2000
+df_2015 = merged_df[merged_df['year'] == 2015]
+
+# Create an interactive scatter plot with a trendline
+fig = px.scatter(
+    df_2015,
+    x='anemia_prevalence',
+    y='mortality_rate',
+    text='country',  
+    title='Anemia vs Maternal Mortality Rate (2015)',
+    labels={
+        'anemia_prevalence': 'Anemia Prevalence (%)',
+        'mortality_rate': 'Maternal Mortality Rate (per 100,000 live births)'
+    },
+    trendline='ols', 
+    template='plotly_white'
+)
+
+# Improve visibility of text labels
+fig.update_traces(textposition='top center')
+
+```
+
+📊**Progress & Gaps**
+Average MMR dropped from 165 (in 2000) to ~118 in 2015, but disparities remain — particularly in countries with ongoing conflict or limited healthcare access. ​
+
+
+
+
+
+
+
+
+# Acknowledgements 
+
+This dashboard is the final project submission for the PYTHON BASICS & BEYOND course offered by The Graph Courses.
+
+A huge thank you to The Graph Courses for providing such a wonderful and informative learning experience! The lessons were incredibly insightful, and the hands-on approach made complex concepts much more accessible. This work has been completed as the final project for the course.
+
+Special thanks to our dedicated team of instructors and coordinators for their unwavering support: Sabina Rodriguez Velásquez, Ivan Ogasawara, Joy Vaz, Kene David Nwosu, Sara Botero Mesa, and Keiser Olivia. Your guidance and expertise have made this journey truly enriching—thank you for your hard work and commitment! 
